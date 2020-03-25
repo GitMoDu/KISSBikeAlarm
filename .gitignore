@@ -1,0 +1,7 @@
+.vs/
+__vm/
+KISSBikeAlarm.vcxproj.filters
+*.vcxproj
+*.user
+Release/
+KISSBikeAlarm.sln
