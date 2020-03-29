@@ -11,7 +11,6 @@ public:
 	virtual void Disable() {}
 	virtual void ArmInterrupt() {}
 
-	virtual bool IsMainPowerOn() { return false; }
 	virtual bool IsArmSignalOn() { return false; }
 };
 

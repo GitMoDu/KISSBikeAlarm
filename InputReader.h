@@ -17,7 +17,6 @@
 class InputReader : EventTask, public virtual IInputReader
 {
 private:
-	const uint8_t PowerPin;
 	const uint8_t ArmPin;
 
 	const uint32_t DebounceDuration = 500;
@@ -31,10 +30,9 @@ private:
 	bool PendingEvent = false;
 
 public:
-	InputReader(Scheduler* scheduler, const uint8_t armInterruptPin, const uint8_t powerPin)
+	InputReader(Scheduler* scheduler, const uint8_t armInterruptPin)
 		: EventTask(scheduler)
 		, IInputReader()
-		, PowerPin(powerPin)
 		, ArmPin(armInterruptPin)
 	{
 	}
@@ -78,17 +76,11 @@ public:
 
 		//TODO: Validate interrupt pins.
 
-		pinMode(PowerPin, INPUT_PULLUP);
 		pinMode(ArmPin, INPUT);
 
 		detachInterrupt(digitalPinToInterrupt(ArmPin));
 
 		return true;
-	}
-
-	virtual bool IsMainPowerOn()
-	{
-		return digitalRead(PowerPin);
 	}
 
 	virtual bool IsArmSignalOn()

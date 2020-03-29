@@ -26,8 +26,8 @@ Scheduler SchedulerBase;
 AlarmBuzzer Buzzer(&SchedulerBase, 11);
 //
 
-// Input comtrols task.
-InputReader Reader(&SchedulerBase, 2, 4);
+// Input controls task.
+InputReader Reader(&SchedulerBase, 2);
 //
 
 // IMU task.
