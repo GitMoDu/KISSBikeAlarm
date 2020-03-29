@@ -92,13 +92,13 @@ public:
 
 	virtual void OnEvent()
 	{
-		//#ifdef DEBUG_LOG
-		//		Serial.print(millis());
-		//		Serial.print(F(" - Event!! State("));
-		//		Serial.print(millis() - StateStartedTimestamp);
-		//		Serial.print(F("): "));
-		//		Serial.println(State);
-		//#endif
+#ifdef DEBUG_LOG
+		Serial.print(millis());
+		Serial.print(F(" - Event!! State("));
+		Serial.print(millis() - StateStartedTimestamp);
+		Serial.print(F("): "));
+		Serial.println(State);
+#endif
 
 		switch (State)
 		{
@@ -295,7 +295,7 @@ public:
 			}
 			else if (StateElapsed > TRANSITION_GRACE_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::LastWarning,0 );
+				UpdateState(StateEnum::LastWarning, 0);
 			}
 			else
 			{
@@ -313,7 +313,7 @@ public:
 			}
 			else if (Sensor->HasRecentSignificantMotion())
 			{
-				UpdateState(StateEnum::Alarming,0);
+				UpdateState(StateEnum::Alarming, 0);
 			}
 			else
 			{
