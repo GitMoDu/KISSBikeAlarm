@@ -14,15 +14,25 @@
 
 #include "EventTask.h"
 
-class InputReader : EventSource, public virtual IInputReader
+class InputReader : EventTask, public virtual IInputReader
 {
 private:
 	const uint8_t PowerPin;
 	const uint8_t ArmPin;
 
+	const uint32_t DebounceDuration = 500;
+	const uint32_t WaitDuration = 10;
+
+	bool DebouncedArmSignal;
+
+	uint32_t ArmPinLastChanged = 0;
+	bool EventLastEmitted = false;
+
+	bool PendingEvent = false;
+
 public:
-	InputReader(const uint8_t armInterruptPin, const uint8_t powerPin)
-		: EventSource()
+	InputReader(Scheduler* scheduler, const uint8_t armInterruptPin, const uint8_t powerPin)
+		: EventTask(scheduler)
 		, IInputReader()
 		, PowerPin(powerPin)
 		, ArmPin(armInterruptPin)
@@ -31,9 +41,37 @@ public:
 
 	virtual void ArmInterrupt();
 
+	bool Callback()
+	{
+		if (PendingEvent)
+		{
+			if (millis() - ArmPinLastChanged > DebounceDuration)
+			{
+				PendingEvent = false;
+				DebouncedArmSignal = digitalRead(ArmPin);
+				if (EventLastEmitted != DebouncedArmSignal)
+				{
+					EventLastEmitted = DebouncedArmSignal;
+					EventListener->OnEvent();
+				}
+			}
+			else
+			{
+				Task::delay(WaitDuration);
+			}
+
+			return true;
+		}
+		else
+		{
+			Task::disable();
+			return false;
+		}
+	}
+
 	virtual bool Setup(IEventListener* eventListener)
 	{
-		if (!EventSource::Setup(eventListener))
+		if (!EventTask::Setup(eventListener))
 		{
 			return false;
 		}
@@ -55,26 +93,20 @@ public:
 
 	virtual bool IsArmSignalOn()
 	{
-		return !digitalRead(ArmPin);
+		return !DebouncedArmSignal;
 	}
 
 	virtual void Disable()
 	{
 		detachInterrupt(digitalPinToInterrupt(ArmPin));
-
-		ClearLog();
 	}
 
 	void OnDisarmPinInterrupt()
 	{
 		ArmPinLastChanged = millis();
-		EventListener->OnEvent();
-	}
-
-private:
-	void ClearLog()
-	{
-		//TODO:
+		PendingEvent = true;
+		enableIfNot();
+		Task::delay(WaitDuration);
 	}
 };
 #endif
