@@ -2,7 +2,7 @@
 #define WAIT_FOR_LOGGER
 
 
-#define SERIAL_BAUD_RATE 9600
+#define SERIAL_BAUD_RATE 115200
 
 
 
@@ -13,7 +13,8 @@
 #include <TaskScheduler.h>
 
 #include "AlarmBuzzer.h"
-
+#include "MovementSensor.h"
+#include "InputReader.h"
 #include "KissAlarmManager.h"
 
 
@@ -22,21 +23,59 @@ Scheduler SchedulerBase;
 //
 
 // Buzzer task.
-AlarmBuzzer<13> Buzzer(&SchedulerBase);
+AlarmBuzzer Buzzer(&SchedulerBase, 11);
+//
+
+// Input comtrols task.
+InputReader Reader(2, 4);
+//
+
+// IMU task.
+MovementSensor Sensor(&SchedulerBase);
 //
 
 // Alarm task.
-KissAlarmManager AlarmManager(&SchedulerBase, &Buzzer);
+KissAlarmManager AlarmManager(&SchedulerBase);
 //
 
 
 void setup()
 {
+#ifdef DEBUG_LOG
+	Serial.begin(SERIAL_BAUD_RATE);
+#endif
+	if (!Buzzer.Setup())
+	{
+		while (true);;
+	}
 
+	if (!Reader.Setup(&AlarmManager))
+	{
+		Buzzer.PlayError();
+		return;
+	}
+
+	if (!Sensor.Setup(&AlarmManager))
+	{
+		Buzzer.PlayError();
+		return;
+	}
+
+	if (!AlarmManager.Setup(&Buzzer, &Sensor, &Reader))
+	{
+		Buzzer.PlayError();
+		return;
+	}
+
+
+
+#ifdef DEBUG_LOG
+	Serial.println(F("Alarm Started."));
+#endif
 }
 
 void loop()
 {
-
+	SchedulerBase.execute();
 }
 
