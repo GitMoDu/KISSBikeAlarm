@@ -92,7 +92,7 @@ public:
 
 	virtual void OnEvent()
 	{
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) && defined(DEBUG_EVENT)
 		Serial.print(millis());
 		Serial.print(F(" - Event!! State("));
 		Serial.print(millis() - StateStartedTimestamp);
@@ -119,7 +119,7 @@ public:
 	{
 		if (State != state)
 		{
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) && defined(DEBUG_STATE)
 			Serial.print(millis());
 			Serial.print(F(" - Alarm State("));
 			Serial.print(millis() - StateStartedTimestamp);

@@ -1,4 +1,6 @@
 #define DEBUG_LOG
+#define DEBUG_EVENT
+#define DEBUG_STATE
 #define WAIT_FOR_LOGGER
 
 
