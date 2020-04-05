@@ -19,7 +19,7 @@ class InputReader : EventTask, public virtual IInputReader
 private:
 	const uint8_t ArmPin;
 
-	const uint32_t DebounceDuration = 500;
+	const uint32_t DebounceDuration = 200;
 	const uint32_t WaitDuration = 10;
 
 	bool DebouncedArmSignal;
