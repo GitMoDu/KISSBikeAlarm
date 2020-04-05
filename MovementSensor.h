@@ -13,10 +13,14 @@
 
 class MovementSensor : EventTask, public virtual IMovementSensor
 {
+private:
+	const uint8_t InterruptPin;
+
 public:
-	MovementSensor(Scheduler* scheduler)
+	MovementSensor(Scheduler* scheduler, const uint8_t interruptPin)
 		: EventTask(scheduler)
 		, IMovementSensor()
+		, InterruptPin(interruptPin)
 	{
 	}
 
@@ -26,6 +30,8 @@ public:
 		{
 			return false;
 		}
+
+		pinMode(InterruptPin, INPUT_PULLUP);
 
 		return true;
 	}

@@ -33,7 +33,7 @@ InputReader Reader(&SchedulerBase, 2);
 //
 
 // IMU task.
-MovementSensor Sensor(&SchedulerBase);
+MovementSensor Sensor(&SchedulerBase, 3);
 //
 
 // Alarm task.
