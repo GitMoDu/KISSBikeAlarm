@@ -191,7 +191,7 @@ public:
 	{
 		StopPlaying();
 		CurrentStartedMillis = millis();
-		Current = SoundEnum::NotArmed;
+		Current = SoundEnum::Alarm;
 		enable();
 	}
 
