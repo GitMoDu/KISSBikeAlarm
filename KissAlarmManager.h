@@ -39,16 +39,16 @@ private:
 
 	uint32_t StateStartedTimestamp = 0;
 
-	const uint32_t TRANSITION_GRACE_PERIOD_MILLIS = 10000;
+	const uint32_t TRANSITION_GRACE_PERIOD_MILLIS = 2000;
 
 	const uint32_t ARM_DELAY_MILLIS = 5000; // 2 * 60 * 1000;
-	const uint32_t ALARMING_DURATION_MILLIS = 5 * 60 * 1000;
+	const uint32_t ALARMING_DURATION_MILLIS = 5000; //5 * 60 * 1000;
 
-	const uint32_t MIN_WAIT_PERIOD_MILLIS = 100;
-	const uint32_t ARM_CHECK_PERIOD_MILLIS = 60000;
+	const uint32_t MIN_WAIT_PERIOD_MILLIS = 10;
+	const uint32_t ARM_MIN_PERIOD_TO_SLEEP_MILLIS = 30 * 1000;
 	const uint32_t ALARMING_CHECK_PERIOD_MILLIS = 1000;
-	const uint32_t EARLY_WARNING_PERIOD_MILLIS = 10000;
-	const uint32_t LAST_WARNING_PERIOD_MILLIS = 3000;
+	const uint32_t EARLY_WARNING_PERIOD_MILLIS = 3000;
+	const uint32_t LAST_WARNING_PERIOD_MILLIS = 500;
 
 	// Runtime helper.
 	uint32_t StateElapsed = 0;
@@ -176,7 +176,7 @@ public:
 			case StateEnum::Alarming:
 				Sensor->ArmInterrupt();
 				Reader->ArmInterrupt();
-				Buzzer->PlayEarlyWarning();
+				Buzzer->PlayAlarm();
 				break;
 			case StateEnum::StateCount:
 				break;
@@ -222,9 +222,14 @@ public:
 			{
 				UpdateState(StateEnum::Arming, ARM_DELAY_MILLIS);
 			}
+			else if (StateElapsed > ARM_MIN_PERIOD_TO_SLEEP_MILLIS)
+			{
+				//TODO: Enter ultra-low power mode.
+				Task::disable();
+			}
 			else
 			{
-				Task::delay(ARM_CHECK_PERIOD_MILLIS);
+				Task::delay(MIN_WAIT_PERIOD_MILLIS);
 			}
 			break;
 		case StateEnum::Arming:
@@ -250,10 +255,14 @@ public:
 			{
 				UpdateState(StateEnum::ArmingEarlyWarning, TRANSITION_GRACE_PERIOD_MILLIS);
 			}
-			else
+			else if (StateElapsed > ARM_MIN_PERIOD_TO_SLEEP_MILLIS)
 			{
 				//TODO: Enter ultra-low power mode.
-				Task::delay(ARM_CHECK_PERIOD_MILLIS);
+				Task::disable();
+			}
+			else
+			{
+				Task::delay(MIN_WAIT_PERIOD_MILLIS);
 			}
 			break;
 		case StateEnum::ArmingEarlyWarning:
@@ -275,13 +284,16 @@ public:
 			{
 				UpdateState(StateEnum::NotArmed, 0);
 			}
-			else if (!Sensor->HasRecentSignificantMotion() && StateElapsed > EARLY_WARNING_PERIOD_MILLIS)
+			else if (StateElapsed > EARLY_WARNING_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::NotArmed, 0);
-			}
-			else if (Sensor->HasRecentSignificantMotion()) //TODO:
-			{
-				UpdateState(StateEnum::ArmingLastWarning, TRANSITION_GRACE_PERIOD_MILLIS);
+				if (Sensor->HasRecentSignificantMotion())
+				{
+					UpdateState(StateEnum::ArmingLastWarning, 0);
+				}
+				else
+				{
+					UpdateState(StateEnum::Armed, 0);
+				}
 			}
 			else
 			{
@@ -307,13 +319,16 @@ public:
 			{
 				UpdateState(StateEnum::NotArmed, 0);
 			}
-			else if (!Sensor->HasRecentSignificantMotion() && StateElapsed > EARLY_WARNING_PERIOD_MILLIS)
+			else if (StateElapsed > LAST_WARNING_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::NotArmed, 0);
-			}
-			else if (Sensor->HasRecentSignificantMotion())
-			{
-				UpdateState(StateEnum::Alarming, 0);
+				if (Sensor->HasRecentSignificantMotion())
+				{
+					UpdateState(StateEnum::Alarming, 0);
+				}
+				else
+				{
+					UpdateState(StateEnum::ArmingEarlyWarning, 0);
+				}
 			}
 			else
 			{
@@ -327,7 +342,7 @@ public:
 			}
 			else if (StateElapsed > ALARMING_DURATION_MILLIS)
 			{
-				UpdateState(StateEnum::ArmingLastWarning, TRANSITION_GRACE_PERIOD_MILLIS);
+				UpdateState(StateEnum::ArmingLastWarning, 0);
 			}
 			else
 			{
@@ -348,16 +363,6 @@ public:
 		if (Buzzer != nullptr)
 		{
 			Buzzer->Stop();
-		}
-
-		if (Sensor != nullptr)
-		{
-			Sensor->Disable();
-		}
-
-		if (Reader != nullptr)
-		{
-			Reader->Disable();
 		}
 	}
 
