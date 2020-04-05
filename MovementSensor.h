@@ -36,6 +36,11 @@ public:
 		return true;
 	}
 
+	virtual bool HasRecentSignificantMotion()
+	{
+		return false;
+	}
+
 	bool Callback()
 	{
 
