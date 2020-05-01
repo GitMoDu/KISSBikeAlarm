@@ -8,17 +8,33 @@
 #include <TaskSchedulerDeclarations.h>
 
 #include "IMovementSensor.h"
-#include "IAlarmBuzzer.h"
+#include "IAlarmOutput.h"
 #include "IEventListener.h"
 
 class KissAlarmManager : Task, public virtual IEventListener
 {
 private:
-	IAlarmBuzzer* Buzzer = nullptr;
+	const uint32_t MOVEMENT_PERIOD_MILLIS = 600;
+	const uint32_t TRANSITION_GRACE_PERIOD_MILLIS = 2000;
 
-	IMovementSensor* Sensor = nullptr;
+	const uint32_t ARM_MIN_PERIOD_MILLIS = 5000;
+	const uint32_t ARM_MAX_WARMUP_PERIOD_MILLIS = ARM_MIN_PERIOD_MILLIS * 3;
+	const uint32_t REARM_WAIT_PERIOD_MILLIS = 5000;
+	const uint32_t ALARMING_DURATION_MILLIS = 5000; //3 * 60 * 1000;
 
-	IInputReader* Reader = nullptr;
+	const uint32_t ARMING_CHECK_PERIOD_MILLIS = 10;
+	static const uint32_t MIN_RUN_PERIOD_MILLIS = 2;
+	const uint32_t ALARMING_CHECK_PERIOD_MILLIS = 1000;
+	const uint32_t EARLY_WARNING_PERIOD_MILLIS = 1000 + MOVEMENT_PERIOD_MILLIS + TRANSITION_GRACE_PERIOD_MILLIS;
+	const uint32_t EARLY_WARNING_SKIP_MILLIS = 3000 + EARLY_WARNING_PERIOD_MILLIS;
+
+	IAlarmOutput* Buzzer = nullptr;
+
+	IAlarmOutput* Light = nullptr;
+
+	IMovementSensor* MovementDetector = nullptr;
+
+	IInputReader* InputReader = nullptr;
 
 	enum StateEnum : uint8_t
 	{
@@ -26,11 +42,10 @@ private:
 		WakingUp,
 		NotArmed,
 		Arming,
+		ArmingFailed,
 		Armed,
 		ArmingEarlyWarning,
 		EarlyWarning,
-		ArmingLastWarning,
-		LastWarning,
 		Alarming,
 		StateCount
 	};
@@ -38,53 +53,44 @@ private:
 	StateEnum State = StateEnum::Disabled;
 
 	uint32_t StateStartedTimestamp = 0;
-
-	const uint32_t TRANSITION_GRACE_PERIOD_MILLIS = 2000;
-
-	const uint32_t ARM_DELAY_MILLIS = 5000; // 2 * 60 * 1000;
-	const uint32_t ALARMING_DURATION_MILLIS = 5000; //5 * 60 * 1000;
-
-	const uint32_t MIN_WAIT_PERIOD_MILLIS = 10;
-	const uint32_t ARM_MIN_PERIOD_TO_SLEEP_MILLIS = 30 * 1000;
-	const uint32_t ALARMING_CHECK_PERIOD_MILLIS = 1000;
-	const uint32_t EARLY_WARNING_PERIOD_MILLIS = 3000;
-	const uint32_t LAST_WARNING_PERIOD_MILLIS = 500;
-
-	// Runtime helper.
-	uint32_t StateElapsed = 0;
+	uint32_t LastWarningTimestamp = 0;
 
 public:
 	KissAlarmManager(Scheduler* scheduler)
 		: Task(0, TASK_FOREVER, scheduler, false)
 		, IEventListener()
 	{
+		pinMode(LED_BUILTIN, OUTPUT);
+		digitalWrite(LED_BUILTIN, LOW);
 	}
 
-	bool Setup(IAlarmBuzzer* buzzer, IMovementSensor* movementSensor
+	bool Setup(IAlarmOutput* buzzer, IAlarmOutput* light, IMovementSensor* movementSensor
 		, IInputReader* inputReader)
 	{
 		bool Success = true;
 
 		Buzzer = buzzer;
-		Sensor = movementSensor;
-		Reader = inputReader;
+		Light = light;
+		MovementDetector = movementSensor;
+		InputReader = inputReader;
 
 		if (Buzzer == nullptr ||
-			Sensor == nullptr ||
-			Reader == nullptr)
+			Light == nullptr ||
+			MovementDetector == nullptr ||
+			InputReader == nullptr)
 		{
 			Success = false;
 		}
 
 		if (Success)
 		{
-			UpdateState(StateEnum::WakingUp, 1000);
+			UpdateState(StateEnum::WakingUp);
 
 			return true;
 		}
 		else
 		{
-			UpdateState(StateEnum::Disabled, 0);
+			UpdateState(StateEnum::Disabled);
 
 			return false;
 		}
@@ -92,30 +98,18 @@ public:
 
 	virtual void OnEvent()
 	{
-#if defined(DEBUG_LOG) && defined(DEBUG_EVENT)
-		Serial.print(millis());
-		Serial.print(F(" - Event!! State("));
-		Serial.print(millis() - StateStartedTimestamp);
-		Serial.print(F("): "));
-		Serial.println(State);
-#endif
-
 		switch (State)
 		{
-		case StateEnum::NotArmed:
-		case StateEnum::Armed:
-		case StateEnum::EarlyWarning:
-		case StateEnum::LastWarning:
-		case StateEnum::Alarming:
-			enableIfNot();
-			forceNextIteration();
+		case StateEnum::Disabled:
 			break;
 		default:
+			Task::enableIfNot();
+			Task::forceNextIteration();
 			break;
 		}
 	}
 
-	void UpdateState(StateEnum state, const uint32_t nextRunDelayMillis)
+	void UpdateState(StateEnum state, const uint32_t nextRunDelayMillis = MIN_RUN_PERIOD_MILLIS)
 	{
 		if (State != state)
 		{
@@ -124,58 +118,71 @@ public:
 			Serial.print(F(" - Alarm State("));
 			Serial.print(millis() - StateStartedTimestamp);
 			Serial.print(F("): "));
-			Serial.println(State);
+			Serial.println(state);
 #endif
 
 			StateStartedTimestamp = millis();
-
-			Buzzer->Stop();
+			State = state;
 
 			switch (state)
 			{
 			case StateEnum::Disabled:
-				Sensor->Disable();
-				Reader->Disable();
+				MovementDetector->Disable();
+				InputReader->Disable();
+
+				Light->PlayError();
 				Buzzer->PlayError();
 				break;
 			case StateEnum::WakingUp:
-				Sensor->Disable();
-				Reader->Disable();
+				MovementDetector->Disable();
+				InputReader->Disable();
+
+				Light->Stop();
+				Buzzer->Stop();
 				break;
 			case StateEnum::NotArmed:
-				Reader->ArmInterrupt();
+				InputReader->Enable();
+				MovementDetector->Disable();
+
+				Light->PlayNotArmed();
 				Buzzer->PlayNotArmed();
 				break;
 			case StateEnum::Arming:
-				Reader->Disable();
-				Sensor->Disable();
-				Buzzer->PlayArmed();
+				InputReader->Enable();
+				MovementDetector->Enable();
+
+				Light->PlayArming();
+				Buzzer->PlayArming();
+				break;
+			case StateEnum::ArmingFailed:
+				InputReader->Enable();
+				MovementDetector->Disable();
+
+				Light->PlayArmingFailed();
+				Buzzer->PlayArmingFailed();
 				break;
 			case StateEnum::Armed:
-				Sensor->ArmInterrupt();
-				Reader->ArmInterrupt();
+				InputReader->Enable();
+				MovementDetector->Enable();
+
+				Light->PlayArmed();
+				Buzzer->PlayArmed();
 				break;
 			case StateEnum::ArmingEarlyWarning:
-				Reader->Disable();
-				Sensor->Disable();
+				InputReader->Enable();
+				MovementDetector->Enable();
+
 				Buzzer->PlayEarlyWarning();
 				break;
 			case StateEnum::EarlyWarning:
-				Sensor->ArmInterrupt();
-				Reader->ArmInterrupt();
-				break;
-			case StateEnum::ArmingLastWarning:
-				Reader->Disable();
-				Sensor->Disable();
-				Buzzer->PlayLastWarning();
-				break;
-			case StateEnum::LastWarning:
-				Sensor->ArmInterrupt();
-				Reader->ArmInterrupt();
+				InputReader->Enable();
+				MovementDetector->Enable();
 				break;
 			case StateEnum::Alarming:
-				Sensor->ArmInterrupt();
-				Reader->ArmInterrupt();
+				MovementDetector->Disable();
+				InputReader->Enable();
+
+				Light->PlayAlarm();
 				Buzzer->PlayAlarm();
 				break;
 			case StateEnum::StateCount:
@@ -184,165 +191,135 @@ public:
 				break;
 			}
 
-			State = state;
-
-
-			enableIfNot();
-
+			Task::enableIfNot();
 			if (nextRunDelayMillis > 0)
 			{
 				Task::delay(nextRunDelayMillis);
 			}
 			else
 			{
-				forceNextIteration();
+				Task::forceNextIteration();
 			}
-		}
-	}
-
-	void PeripheralCheck()
-	{
-		if (!Sensor->IsDeviceReady())
-		{
-			// TODO: Add to log, disabled I2C device.
 		}
 	}
 
 	bool Callback()
 	{
-		StateElapsed = millis() - StateStartedTimestamp;
+		uint32_t StateElapsed = millis() - StateStartedTimestamp;
 
 		switch (State)
 		{
 		case StateEnum::WakingUp:
-			UpdateState(StateEnum::NotArmed, 0);
+			UpdateState(StateEnum::NotArmed);
 			break;
 		case StateEnum::NotArmed:
-			if (Reader->IsArmSignalOn())
+			if (InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::Arming, ARM_DELAY_MILLIS);
-			}
-			else if (StateElapsed > ARM_MIN_PERIOD_TO_SLEEP_MILLIS)
-			{
-				//TODO: Enter ultra-low power mode.
-				Task::disable();
+				UpdateState(StateEnum::Arming, ARM_MIN_PERIOD_MILLIS);
+				LastWarningTimestamp = millis() - INT32_MAX; // Clear last warning weariness.
 			}
 			else
 			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
+				Task::disable();
 			}
 			break;
 		case StateEnum::Arming:
-			if (!Reader->IsArmSignalOn())
+			if (!InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::NotArmed);
 			}
-			else if (StateElapsed > ARM_DELAY_MILLIS)
+			if (StateElapsed > ARM_MAX_WARMUP_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::Armed, 0);
+				UpdateState(StateEnum::ArmingFailed);
+			}
+			else if (StateElapsed > ARM_MIN_PERIOD_MILLIS &&
+				!MovementDetector->HasRecentSignificantMotion(ARM_MIN_PERIOD_MILLIS))
+			{
+				UpdateState(StateEnum::Armed);
 			}
 			else
 			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
+				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
+			}
+			break;
+		case StateEnum::ArmingFailed:
+			if (!InputReader->IsArmSignalOn())
+			{
+				UpdateState(StateEnum::NotArmed);
+			}
+			else if (StateElapsed > REARM_WAIT_PERIOD_MILLIS)
+			{
+				UpdateState(StateEnum::Arming, REARM_WAIT_PERIOD_MILLIS);
+			}
+			else
+			{
+				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
 			}
 			break;
 		case StateEnum::Armed:
-			if (!Reader->IsArmSignalOn())
+			if (!InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::NotArmed);
 			}
-			else if (Sensor->HasRecentSignificantMotion())
+			else if (MovementDetector->HasRecentSignificantMotion(MOVEMENT_PERIOD_MILLIS))
 			{
-				UpdateState(StateEnum::ArmingEarlyWarning, TRANSITION_GRACE_PERIOD_MILLIS);
-			}
-			else if (StateElapsed > ARM_MIN_PERIOD_TO_SLEEP_MILLIS)
-			{
-				//TODO: Enter ultra-low power mode.
-				Task::disable();
+				if (millis() - LastWarningTimestamp > EARLY_WARNING_SKIP_MILLIS)
+				{
+					LastWarningTimestamp = millis();
+					UpdateState(StateEnum::ArmingEarlyWarning, TRANSITION_GRACE_PERIOD_MILLIS);
+				}
+				else
+				{
+					UpdateState(StateEnum::Alarming);
+				}
 			}
 			else
 			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
+				Task::disable();
 			}
 			break;
 		case StateEnum::ArmingEarlyWarning:
-			if (!Reader->IsArmSignalOn())
+			if (!InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::NotArmed);
 			}
-			else if (StateElapsed > TRANSITION_GRACE_PERIOD_MILLIS)
+			else if (StateElapsed > (TRANSITION_GRACE_PERIOD_MILLIS + MOVEMENT_PERIOD_MILLIS)
+				&& MovementDetector->HasRecentSignificantMotion(MOVEMENT_PERIOD_MILLIS))
 			{
-				UpdateState(StateEnum::EarlyWarning, 0);
-			}
-			else
-			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
-			}
-			break;
-		case StateEnum::EarlyWarning:
-			if (!Reader->IsArmSignalOn())
-			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::Alarming);
 			}
 			else if (StateElapsed > EARLY_WARNING_PERIOD_MILLIS)
 			{
-				if (Sensor->HasRecentSignificantMotion())
-				{
-					UpdateState(StateEnum::ArmingLastWarning, 0);
-				}
-				else
-				{
-					UpdateState(StateEnum::Armed, 0);
-				}
+				UpdateState(StateEnum::EarlyWarning);
 			}
 			else
 			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
+				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
 			}
 			break;
-		case StateEnum::ArmingLastWarning:
-			if (!Reader->IsArmSignalOn())
+		case StateEnum::EarlyWarning:
+			if (!InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::NotArmed);
 			}
-			else if (StateElapsed > TRANSITION_GRACE_PERIOD_MILLIS)
+			else if (MovementDetector->HasRecentSignificantMotion(MOVEMENT_PERIOD_MILLIS))
 			{
-				UpdateState(StateEnum::LastWarning, 0);
-			}
-			else
-			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
-			}
-			break;
-		case StateEnum::LastWarning:
-			if (!Reader->IsArmSignalOn())
-			{
-				UpdateState(StateEnum::NotArmed, 0);
-			}
-			else if (StateElapsed > LAST_WARNING_PERIOD_MILLIS)
-			{
-				if (Sensor->HasRecentSignificantMotion())
-				{
-					UpdateState(StateEnum::Alarming, 0);
-				}
-				else
-				{
-					UpdateState(StateEnum::ArmingEarlyWarning, 0);
-				}
+				UpdateState(StateEnum::Alarming);
 			}
 			else
 			{
-				Task::delay(MIN_WAIT_PERIOD_MILLIS);
+				UpdateState(StateEnum::Armed);
 			}
 			break;
 		case StateEnum::Alarming:
-			if (!Reader->IsArmSignalOn())
+			if (!InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::NotArmed, 0);
+				UpdateState(StateEnum::NotArmed);
 			}
 			else if (StateElapsed > ALARMING_DURATION_MILLIS)
 			{
-				UpdateState(StateEnum::ArmingLastWarning, 0);
+				LastWarningTimestamp = millis();
+				UpdateState(StateEnum::ArmingEarlyWarning);
 			}
 			else
 			{
@@ -351,7 +328,7 @@ public:
 			break;
 		case StateEnum::Disabled:
 		default:
-			disable();
+			Task::disable();
 			break;
 		}
 
