@@ -10,9 +10,8 @@ class IMovementSensor
 {
 public:
 	virtual void Disable() {}
-	virtual void ArmInterrupt() {}
-	virtual bool HasRecentSignificantMotion() { return false;  }
-	virtual bool IsDeviceReady() { return false; }
+	virtual void Enable() {}
+	virtual bool HasRecentSignificantMotion(const uint32_t period) { return false;  }
 };
 
 #endif

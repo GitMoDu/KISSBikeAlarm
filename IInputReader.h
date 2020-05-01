@@ -9,11 +9,9 @@ class IInputReader
 {
 public:
 	virtual void Disable() {}
-	virtual void ArmInterrupt() {}
+	virtual void Enable() {}
 
 	virtual bool IsArmSignalOn() { return false; }
 };
-
-
 #endif
 
