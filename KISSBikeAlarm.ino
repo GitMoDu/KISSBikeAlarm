@@ -1,6 +1,23 @@
+/* KISS Bike Alarm
+	Bike Alarm
+		- Controlled by ignition key for arming.
+		- Triggered by motion detection.
+
+	Dependecies
+		- MPU650: https://github.com/ElectronicCats/mpu6050
+
+	MCU
+		- ATMega328P (3.3 V) @ 8 Mhz.
+
+	External Hardware
+		- MP56050.
+		- Opto-isolator for input from ignition key.
+		- Step-down power supply (3.3 V).
+	*/
+
 #define DEBUG_LOG
-#define DEBUG_EVENT
 #define DEBUG_STATE
+#define DEBUG_SENSOR
 #define WAIT_FOR_LOGGER
 
 
@@ -19,9 +36,16 @@
 #include "InputReader.h"
 #include "KissAlarmManager.h"
 
+#include <Wire.h>
+
 
 // Process scheduler.
 Scheduler SchedulerBase;
+//
+
+// IIC Master.
+// Statically declared in Wire.h
+//TwoWire Wire;
 //
 
 // Buzzer task.
@@ -32,8 +56,8 @@ AlarmBuzzer Buzzer(&SchedulerBase, 11);
 InputReader Reader(&SchedulerBase, 2);
 //
 
-// IMU task.
-MovementSensor Sensor(&SchedulerBase, 3);
+// IMU task, with offsets.
+MovementSensor Sensor(&SchedulerBase, 3, -502, -185, 1162);
 //
 
 // Alarm task.
@@ -50,6 +74,13 @@ void setup()
 	{
 		while (true);;
 	}
+
+	Wire.begin();
+	Wire.setClock(400000);
+
+#ifdef DEBUG_LOG
+	Serial.println(F("Alarm Start."));
+#endif
 
 	if (!Reader.Setup(&AlarmManager))
 	{
@@ -68,16 +99,9 @@ void setup()
 		Buzzer.PlayError();
 		return;
 	}
-
-
-
-#ifdef DEBUG_LOG
-	Serial.println(F("Alarm Started."));
-#endif
 }
 
 void loop()
 {
 	SchedulerBase.execute();
 }
-
