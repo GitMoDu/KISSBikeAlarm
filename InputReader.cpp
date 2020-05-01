@@ -1,19 +1,14 @@
-// 
-// 
-// 
-
 #include "InputReader.h"
 
+InputReader* StaticInputReaderReference = nullptr;
 
-InputReader* StaticReference = nullptr;
-
-static void StaticOnDisarmPinInterrupt()
+static void StaticOnArmPinInterrupt()
 {
-	StaticReference->OnDisarmPinInterrupt();
+	StaticInputReaderReference->OnArmPinInterrupt();
 }
 
-void InputReader::ArmInterrupt()
+void InputReader::AttachInterrupt()
 {
-	StaticReference = this;
-	attachInterrupt(digitalPinToInterrupt(ArmPin), StaticOnDisarmPinInterrupt, CHANGE);
+	StaticInputReaderReference = this;
+	attachInterrupt(ArmInterruptPin, StaticOnArmPinInterrupt, CHANGE);
 }
