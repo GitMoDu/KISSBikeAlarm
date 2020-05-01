@@ -4,12 +4,11 @@
 #define _ALARMBUZZER_h
 
 #define _TASK_OO_CALLBACKS
-
 #include <TaskSchedulerDeclarations.h>
 
-#include "IAlarmBuzzer.h"
+#include "IAlarmOutput.h"
 
-class AlarmBuzzer : Task, public virtual IAlarmBuzzer
+class AlarmBuzzer : Task, public virtual IAlarmOutput
 {
 private:
 	const uint8_t DrivePin;
@@ -20,9 +19,10 @@ private:
 		Generic,
 		Error,
 		NotArmed,
+		Arming,
+		ArmingFailed,
 		Armed,
 		EarlyWarning,
-		LastWarning,
 		Alarm
 	};
 
@@ -31,14 +31,10 @@ private:
 	uint32_t CurrentStartedMillis = 0;
 	uint32_t GenericBuzzDurationMillis = 0;
 
-#ifdef DEBUG_LOG
-	bool Debugged = false;
-#endif
-
 public:
 	AlarmBuzzer(Scheduler* scheduler, const uint8_t drivePin)
 		: Task(50, TASK_FOREVER, scheduler, false)
-		, IAlarmBuzzer()
+		, IAlarmOutput()
 		, DrivePin(drivePin)
 	{
 	}
@@ -50,73 +46,28 @@ public:
 
 	bool Callback()
 	{
+		uint32_t Elapsed = millis() - CurrentStartedMillis;
+
 		switch (Current)
 		{
 		case SoundEnum::None:
 			disable();
 			break;
 		case SoundEnum::Generic:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Bzzzz"));
-			}
-#endif
 			break;
 		case SoundEnum::Error:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Error"));
-			}
-#endif
 			break;
 		case SoundEnum::NotArmed:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: NotArmed"));
-			}
-#endif
+			break;
+		case SoundEnum::Arming:
+			break;
+		case SoundEnum::ArmingFailed:
 			break;
 		case SoundEnum::Armed:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Armed"));
-			}
-#endif
 			break;
 		case SoundEnum::EarlyWarning:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Early Warning"));
-			}
-#endif
-			break;
-		case SoundEnum::LastWarning:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Last Warning"));
-			}
-#endif
 			break;
 		case SoundEnum::Alarm:
-#ifdef DEBUG_LOG
-			if (!Debugged)
-			{
-				Debugged = true;
-				Serial.println(F("Buzz: Alarming!!!"));
-			}
-#endif
 			break;
 		default:
 			disable();
@@ -145,6 +96,10 @@ public:
 		Current = SoundEnum::Generic;
 		GenericBuzzDurationMillis = durationMillis;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Bzzzz"));
+#endif
 	}
 
 	virtual void PlayError()
@@ -153,6 +108,10 @@ public:
 		CurrentStartedMillis = millis();
 		Current = SoundEnum::Error;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Error"));
+#endif
 	}
 
 	virtual void PlayArmed()
@@ -161,6 +120,10 @@ public:
 		CurrentStartedMillis = millis();
 		Current = SoundEnum::Armed;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Armed"));
+#endif
 	}
 
 	virtual void PlayNotArmed()
@@ -169,6 +132,10 @@ public:
 		CurrentStartedMillis = millis();
 		Current = SoundEnum::NotArmed;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Not Armed"));
+#endif
 	}
 
 	virtual void PlayEarlyWarning()
@@ -177,14 +144,34 @@ public:
 		CurrentStartedMillis = millis();
 		Current = SoundEnum::EarlyWarning;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Early Warning"));
+#endif
 	}
 
-	virtual void PlayLastWarning()
+	virtual void PlayArming()
 	{
 		StopPlaying();
 		CurrentStartedMillis = millis();
-		Current = SoundEnum::LastWarning;
+		Current = SoundEnum::Arming;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Arming"));
+#endif
+	}
+
+	virtual void PlayArmingFailed()
+	{
+		StopPlaying();
+		CurrentStartedMillis = millis();
+		Current = SoundEnum::ArmingFailed;
+		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: Arming Failed"));
+#endif
 	}
 
 	virtual void PlayAlarm()
@@ -193,6 +180,10 @@ public:
 		CurrentStartedMillis = millis();
 		Current = SoundEnum::Alarm;
 		enable();
+
+#ifdef DEBUG_LOG
+		Serial.println(F("Buzz: AUUUUUGAAAAAAAAAAA"));
+#endif
 	}
 
 	virtual void Stop()
@@ -205,9 +196,7 @@ private:
 	{
 		Current = SoundEnum::None;
 		digitalWrite(DrivePin, LOW);
-#ifdef DEBUG_LOG	
-		Debugged = false;
-#endif
+		disable();
 	}
 };
 
