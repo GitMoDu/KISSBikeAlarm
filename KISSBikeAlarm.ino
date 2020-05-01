@@ -32,6 +32,7 @@
 #include <TaskScheduler.h>
 
 #include "AlarmBuzzer.h"
+#include "AlarmLight.h"
 #include "MovementSensor.h"
 #include "InputReader.h"
 #include "KissAlarmManager.h"
@@ -51,6 +52,10 @@ Scheduler SchedulerBase;
 // Buzzer task.
 AlarmBuzzer Buzzer(&SchedulerBase, 11);
 //
+
+// Light task.
+AlarmLight Light(&SchedulerBase, LED_BUILTIN);
+// 
 
 // Input controls task.
 InputReader Reader(&SchedulerBase, 2);
@@ -94,7 +99,7 @@ void setup()
 		return;
 	}
 
-	if (!AlarmManager.Setup(&Buzzer, &Sensor, &Reader))
+	if (!AlarmManager.Setup(&Buzzer, &Light, &Sensor, &Reader))
 	{
 		Buzzer.PlayError();
 		return;
