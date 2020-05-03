@@ -204,7 +204,7 @@ public:
 		case StateEnum::NotArmed:
 			if (InputReader->IsArmSignalOn())
 			{
-				UpdateState(StateEnum::Arming, ARM_MIN_PERIOD_MILLIS);
+				UpdateState(StateEnum::Arming);
 				LastWarningTimestamp = millis() - INT32_MAX; // Clear last warning weariness.
 			}
 			else
@@ -217,18 +217,20 @@ public:
 			{
 				UpdateState(StateEnum::NotArmed);
 			}
-			if (StateElapsed > ARM_MAX_WARMUP_PERIOD_MILLIS)
+			else if (StateElapsed >= ARM_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::ArmingFailed);
-			}
-			else if (StateElapsed > ARM_MIN_PERIOD_MILLIS &&
-				!MovementDetector->HasRecentSignificantMotion(ARM_MIN_PERIOD_MILLIS))
-			{
-				UpdateState(StateEnum::Armed);
+				if (MovementDetector->HasRecentSignificantMotion(ARM_PERIOD_MILLIS - TRANSITION_GRACE_PERIOD_MILLIS))
+				{
+					UpdateState(StateEnum::ArmingFailed);
+				}
+				else
+				{
+					UpdateState(StateEnum::Armed);
+				}
 			}
 			else
 			{
-				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
+				Task::delay(ARM_PERIOD_MILLIS - StateElapsed);
 			}
 			break;
 		case StateEnum::ArmingFailed:
@@ -238,11 +240,11 @@ public:
 			}
 			else if (StateElapsed > REARM_WAIT_PERIOD_MILLIS)
 			{
-				UpdateState(StateEnum::Arming, REARM_WAIT_PERIOD_MILLIS);
+				UpdateState(StateEnum::Arming);
 			}
 			else
 			{
-				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
+				Task::delay(REARM_WAIT_PERIOD_MILLIS - StateElapsed);
 			}
 			break;
 		case StateEnum::Armed:
@@ -283,7 +285,7 @@ public:
 			}
 			else
 			{
-				Task::delay(ARMING_CHECK_PERIOD_MILLIS);
+				Task::delay(EARLY_WARNING_PERIOD_MILLIS - StateElapsed);
 			}
 			break;
 		case StateEnum::EarlyWarning:
@@ -312,7 +314,7 @@ public:
 			}
 			else
 			{
-				Task::delay(ALARMING_CHECK_PERIOD_MILLIS);
+				Task::delay(ALARMING_DURATION_MILLIS - StateElapsed);
 			}
 			break;
 		case StateEnum::Disabled:
