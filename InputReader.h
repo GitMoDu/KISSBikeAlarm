@@ -113,7 +113,7 @@ public:
 			}
 			else
 			{
-				// Sleep the debounce period.
+				// Sleep the remaining debounce period.
 				Task::delay(DebounceDuration - (millis() - ArmPinLastChanged));
 			}
 		default:
@@ -141,7 +141,7 @@ public:
 			ArmPinLastChanged = millis();
 			InterruptPending = true;
 			Task::enableIfNot();
-			Task::forceNextIteration();
+			Task::delay(DebounceDuration);
 			break;
 		default:
 			break;
