@@ -54,7 +54,7 @@ AlarmBuzzer Buzzer(&SchedulerBase, 11);
 //
 
 // Light task.
-AlarmLight Light(&SchedulerBase, LED_BUILTIN);
+AlarmLight Light(&SchedulerBase, 7);
 // 
 
 // Input controls task.
@@ -77,7 +77,12 @@ void setup()
 #endif
 	if (!Buzzer.Setup())
 	{
-		while (true);;
+		return;
+	}
+
+	if (!Light.Setup())
+	{
+		return;
 	}
 
 	Wire.begin();
