@@ -11,23 +11,12 @@
 #include "IAlarmOutput.h"
 #include "IEventListener.h"
 
+#include "AlarmConstants.h"
+
+
 class KissAlarmManager : Task, public virtual IEventListener
 {
 private:
-	const uint32_t MOVEMENT_PERIOD_MILLIS = 600;
-	const uint32_t TRANSITION_GRACE_PERIOD_MILLIS = 2000;
-
-	const uint32_t ARM_MIN_PERIOD_MILLIS = 5000;
-	const uint32_t ARM_MAX_WARMUP_PERIOD_MILLIS = ARM_MIN_PERIOD_MILLIS * 3;
-	const uint32_t REARM_WAIT_PERIOD_MILLIS = 5000;
-	const uint32_t ALARMING_DURATION_MILLIS = 5000; //3 * 60 * 1000;
-
-	const uint32_t ARMING_CHECK_PERIOD_MILLIS = 10;
-	static const uint32_t MIN_RUN_PERIOD_MILLIS = 2;
-	const uint32_t ALARMING_CHECK_PERIOD_MILLIS = 1000;
-	const uint32_t EARLY_WARNING_PERIOD_MILLIS = 1000 + MOVEMENT_PERIOD_MILLIS + TRANSITION_GRACE_PERIOD_MILLIS;
-	const uint32_t EARLY_WARNING_SKIP_MILLIS = 3000 + EARLY_WARNING_PERIOD_MILLIS;
-
 	IAlarmOutput* Buzzer = nullptr;
 
 	IAlarmOutput* Light = nullptr;
