@@ -6,9 +6,9 @@
 #define _TASK_OO_CALLBACKS
 #include <TaskSchedulerDeclarations.h>
 
-#include "IAlarmOutput.h"
+#include "..\IAlarmOutput.h"
 
-#include "AlarmConstants.h"
+#include "..\AlarmConstants.h"
 
 
 // use the cRGB struct hsv method

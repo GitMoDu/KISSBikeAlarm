@@ -6,7 +6,7 @@
 #define _TASK_OO_CALLBACKS
 #include <TaskSchedulerDeclarations.h>
 
-#include "IAlarmOutput.h"
+#include "..\IAlarmOutput.h"
 
 class AlarmBuzzer : Task, public virtual IAlarmOutput
 {

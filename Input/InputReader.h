@@ -10,9 +10,9 @@
 
 #include <Arduino.h>
 
-#include "IInputReader.h"
+#include "..\IInputReader.h"
 
-#include "EventTask.h"
+#include "..\Event\EventTask.h"
 
 class InputReader : EventTask, public virtual IInputReader
 {

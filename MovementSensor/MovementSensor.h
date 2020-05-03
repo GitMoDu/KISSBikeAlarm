@@ -12,9 +12,9 @@
 #include "Wire.h"
 #endif
 
-#include "EventTask.h"
+#include "..\IMovementSensor.h"
 
-#include "IMovementSensor.h"
+#include "..\Event\EventTask.h"
 
 class MovementSensor : EventTask
 	, public virtual IMovementSensor

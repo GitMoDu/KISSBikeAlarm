@@ -31,11 +31,11 @@
 
 #include <TaskScheduler.h>
 
-#include "AlarmBuzzer.h"
-#include "AlarmLight.h"
-#include "MovementSensor.h"
-#include "InputReader.h"
-#include "KissAlarmManager.h"
+#include "Buzzer\AlarmBuzzer.h"
+#include "Light\AlarmLight.h"
+#include "MovementSensor\MovementSensor.h"
+#include "Input\InputReader.h"
+#include "AlarmManager.h"
 
 #include <Wire.h>
 
@@ -66,7 +66,7 @@ MovementSensor Sensor(&SchedulerBase, 3, -502, -185, 1162);
 //
 
 // Alarm task.
-KissAlarmManager AlarmManager(&SchedulerBase);
+AlarmManager Manager(&SchedulerBase);
 //
 
 
@@ -92,19 +92,19 @@ void setup()
 	Serial.println(F("Alarm Start."));
 #endif
 
-	if (!Reader.Setup(&AlarmManager))
+	if (!Reader.Setup(&Manager))
 	{
 		Buzzer.PlayError();
 		return;
 	}
 
-	if (!Sensor.Setup(&AlarmManager))
+	if (!Sensor.Setup(&Manager))
 	{
 		Buzzer.PlayError();
 		return;
 	}
 
-	if (!AlarmManager.Setup(&Buzzer, &Light, &Sensor, &Reader))
+	if (!Manager.Setup(&Buzzer, &Light, &Sensor, &Reader))
 	{
 		Buzzer.PlayError();
 		return;

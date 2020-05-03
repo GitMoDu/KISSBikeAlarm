@@ -1,7 +1,7 @@
-// KissAlarmTask.h
+// AlarmManager.h
 
-#ifndef _KISSALARMMANAGER_h
-#define _KISSALARMMANAGER_h
+#ifndef _ALARMMANAGER_h
+#define _ALARMMANAGER_h
 
 #define _TASK_OO_CALLBACKS
 
@@ -14,7 +14,7 @@
 #include "AlarmConstants.h"
 
 
-class KissAlarmManager : Task, public virtual IEventListener
+class AlarmManager : Task, public virtual IEventListener
 {
 private:
 	IAlarmOutput* Buzzer = nullptr;
@@ -45,7 +45,7 @@ private:
 	uint32_t LastWarningTimestamp = 0;
 
 public:
-	KissAlarmManager(Scheduler* scheduler)
+	AlarmManager(Scheduler* scheduler)
 		: Task(0, TASK_FOREVER, scheduler, false)
 		, IEventListener()
 	{
