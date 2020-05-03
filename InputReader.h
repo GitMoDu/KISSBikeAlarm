@@ -17,26 +17,23 @@
 class InputReader : EventTask, public virtual IInputReader
 {
 private:
+	enum StateEnum : uint8_t
+	{
+		Disabled,
+		Active,
+	};
+
 	const uint8_t ArmPin;
 	const uint8_t ArmInterruptPin;
 
 	const uint32_t DebounceDuration = 100;
-	const uint32_t BounceDuration = 2;
 
 	bool DebouncedArmSignal = false;
 	bool LastEmittedEvent = false;
 
-	volatile uint32_t ArmPinLastChanged = 0;
-	volatile bool LastInput = false;
-
-	enum StateEnum : uint8_t
-	{
-		Disabled,
-		Idle,
-		Debouncing,
-	};
-
 	volatile StateEnum State = StateEnum::Disabled;
+	volatile uint32_t ArmPinLastChanged = 0;
+	volatile bool InterruptPending = false;
 
 public:
 	InputReader(Scheduler* scheduler, const uint8_t armInterruptPin)
@@ -50,8 +47,10 @@ public:
 
 	virtual void Enable()
 	{
-		if (State == StateEnum::Disabled)
+		if (State != StateEnum::Active)
 		{
+			DebouncedArmSignal = digitalRead(ArmPin);
+			LastEmittedEvent = !DebouncedArmSignal;
 			ResetToIdle();
 			AttachInterrupt();
 		}
@@ -59,9 +58,12 @@ public:
 
 	virtual void Disable()
 	{
-		State = StateEnum::Disabled;
-		detachInterrupt(ArmInterruptPin);
-		Task::disable();
+		if (State != StateEnum::Disabled)
+		{
+			State = StateEnum::Disabled;
+			detachInterrupt(ArmInterruptPin);
+			Task::disable();
+		}
 	}
 
 	virtual bool Setup(IEventListener* eventListener)
@@ -85,59 +87,35 @@ public:
 
 	bool Callback()
 	{
-		bool Input = LastInput;
-
-		uint32_t Elapsed = millis() - ArmPinLastChanged;
-
 		switch (State)
 		{
 		case StateEnum::Disabled:
 			detachInterrupt(ArmInterruptPin);
 			Task::disable();
 			break;
-		case StateEnum::Idle:
-			if (Input != LastInput)
+		case StateEnum::Active:
+			if (InterruptPending)
 			{
-				// Value has changed since the callback started.
+				InterruptPending = false;
+			}
+
+			if (millis() - ArmPinLastChanged >= DebounceDuration)
+			{
+				// Debounce duration without pin change has occured.
+				UpdateDebouncedArmSignal(digitalRead(ArmPin));
 				ResetToIdle();
 			}
-			else if (LastInput != LastEmittedEvent)
+			else if (InterruptPending)
 			{
-				// Input detected fallback, this should never run but may catch edge cases.
-				State = StateEnum::Debouncing;
+				// If interrupt fired while processing, start again.
 				Task::enableIfNot();
 				Task::forceNextIteration();
 			}
 			else
 			{
-				Task::disable();
+				// Sleep the debounce period.
+				Task::delay(DebounceDuration - (millis() - ArmPinLastChanged));
 			}
-			break;
-		case StateEnum::Debouncing:
-			if (Input != LastInput || Input == LastEmittedEvent)
-			{
-				// Value might have changed since the callback started.
-				// Value is bouncing back, wait for BounceDuration before cancelling.
-				if (Elapsed >= BounceDuration)
-				{
-					ResetToIdle();
-				}
-				else
-				{
-					Task::delay(BounceDuration - Elapsed);
-				}
-			}
-			else if (Elapsed >= DebounceDuration)
-			{
-				// Debounce duration without pin change has occured.
-				UpdateDebouncedArmSignal(!LastEmittedEvent);
-				ResetToIdle();
-			}
-			else
-			{
-				Task::delay(DebounceDuration - Elapsed);
-			}
-			break;
 		default:
 			break;
 		}
@@ -153,27 +131,22 @@ public:
 
 	void OnArmPinInterrupt()
 	{
-		LastInput = digitalRead(ArmPin);
-
+		noInterrupts();
 		switch (State)
 		{
 		case StateEnum::Disabled:
 			Disable();
 			break;
-		case StateEnum::Idle:
-			State = StateEnum::Debouncing;
+		case StateEnum::Active:
 			ArmPinLastChanged = millis();
-			Task::enableIfNot();
-			Task::forceNextIteration();
-			break;
-		case StateEnum::Debouncing:
-			ArmPinLastChanged = millis();
+			InterruptPending = true;
 			Task::enableIfNot();
 			Task::forceNextIteration();
 			break;
 		default:
 			break;
 		}
+		interrupts();
 	}
 
 private:
@@ -182,24 +155,27 @@ private:
 	void UpdateDebouncedArmSignal(const bool on)
 	{
 		DebouncedArmSignal = on;
-		LastEmittedEvent = on;
 
-		EventListener->OnEvent();
+		// Only fire event if value has changed.
+		if (LastEmittedEvent != DebouncedArmSignal)
+		{
+			LastEmittedEvent = DebouncedArmSignal;
+			EventListener->OnEvent();
+		}
 	}
 
 	void ResetToIdle()
 	{
-		ArmPinLastChanged = millis();
-
+		// Last minute check, before we sleep.
 		if (digitalRead(ArmPin) != LastEmittedEvent)
 		{
-			State = StateEnum::Debouncing;
+			State = StateEnum::Active;
 			Task::enableIfNot();
 			Task::forceNextIteration();
 		}
 		else
 		{
-			State = StateEnum::Idle;
+			State = StateEnum::Active;
 			Task::disable();
 		}
 	}
