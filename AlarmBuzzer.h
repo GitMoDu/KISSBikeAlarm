@@ -73,6 +73,8 @@ public:
 			disable();
 			break;
 		}
+
+		return true;
 	}
 
 	bool OnEnable()

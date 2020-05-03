@@ -112,6 +112,8 @@ public:
 		}
 
 		UpdateLED();
+
+		return true;
 	}
 
 	virtual void PlayError()
