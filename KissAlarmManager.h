@@ -124,7 +124,7 @@ public:
 				break;
 			case StateEnum::WakingUp:
 				MovementDetector->Disable();
-				InputReader->Disable();
+				InputReader->Enable();
 
 				Light->Stop();
 				Buzzer->Stop();
