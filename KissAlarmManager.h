@@ -161,6 +161,7 @@ public:
 				InputReader->Enable();
 				MovementDetector->Enable();
 
+				Light->PlayEarlyWarning();
 				Buzzer->PlayEarlyWarning();
 				break;
 			case StateEnum::EarlyWarning:

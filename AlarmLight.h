@@ -21,10 +21,10 @@ private:
 	const uint8_t DrivePin;
 
 	static const uint8_t LedCount = 1;
-	static const uint32_t AnimationPeriod = 2;
+	static const uint32_t AnimationPeriod = 10;
 
 	static const uint8_t Brightness = 255;
-	static const uint8_t ArmedBrightness = 200;
+	static const uint8_t ArmedBrightness = 230;
 
 	WS2812 LED;
 
@@ -39,6 +39,7 @@ private:
 		Arming,
 		ArmingFailed,
 		Armed,
+		EarlyWarning,
 		Alarm
 	};
 
@@ -81,7 +82,6 @@ public:
 		// Animations may override the value.
 		Task::delay(AnimationPeriod);
 
-
 		switch (Current)
 		{
 		case LightEnum::None:
@@ -89,7 +89,7 @@ public:
 			Task::disable();
 			break;
 		case LightEnum::Error:
-			Stop();
+			UpdateError(Elapsed);
 			break;
 		case LightEnum::NotArmed:
 			UpdateNotArmed(Elapsed);
@@ -98,13 +98,17 @@ public:
 			UpdateArming(Elapsed);
 			break;
 		case LightEnum::ArmingFailed:
-			Stop();
+			UpdateError(Elapsed);
 			break;
 		case LightEnum::Armed:
 			UpdateArmed(Elapsed);
 			break;
+		case LightEnum::EarlyWarning:
+			// Early warning is same as alarm.
+			UpdateAlarm(Elapsed);
+			break;
 		case LightEnum::Alarm:
-			Stop();
+			UpdateAlarm(Elapsed);
 			break;
 		default:
 			Stop();
@@ -151,6 +155,13 @@ public:
 		Task::enable();
 	}
 
+	virtual void PlayEarlyWarning()
+	{
+		CurrentStartedMillis = millis();
+		Current = LightEnum::EarlyWarning;
+		Task::enable();
+	}
+
 	virtual void PlayAlarm()
 	{
 		CurrentStartedMillis = millis();
@@ -169,15 +180,51 @@ private:
 	void UpdateLED()
 	{
 		LED.set_crgb_at(0, Value);
+
+		// Only one LED, takes about 40 us @ 16 MHz.
 		noInterrupts();
 		LED.sync();
 		interrupts();
 	}
 
+	void UpdateError(const uint32_t elapsed)
+	{
+		const uint32_t ErrorFlashPeriod = 700;
+		const uint32_t Progress = elapsed % ErrorFlashPeriod;
+
+		if (Progress > (ErrorFlashPeriod / 2))
+		{
+			Value.SetHSV(0, 255, Brightness);
+			Task::delay(ErrorFlashPeriod - Progress);
+		}
+		else
+		{
+			Value.SetHSV(35, 255, Brightness);
+			Task::delay((ErrorFlashPeriod / 2) - Progress);
+		}
+	}
+
+	void UpdateAlarm(const uint32_t elapsed)
+	{
+		const uint32_t AlarmFlashPeriod = 100;
+		const uint32_t Progress = elapsed % AlarmFlashPeriod;
+
+		if (Progress > (AlarmFlashPeriod / 2))
+		{
+			Value.SetHSV(0, 255, Brightness);
+			Task::delay(AlarmFlashPeriod - Progress);
+		}
+		else
+		{
+			Value.SetHSV(45, 255, Brightness);
+			Task::delay((AlarmFlashPeriod / 2) - Progress);
+		}
+	}
+
 	void UpdateNotArmed(const uint32_t elapsed)
 	{
-		const uint32_t TotalDuration = 3000;
-		const uint32_t HuePeriod = 44;
+		const uint32_t TotalDuration = ARMED_FLASH_PERIOD_MILLIS;
+		const uint32_t HuePeriod = 50;
 		const uint8_t PresenceBrightness = 1;
 
 		if (elapsed > TotalDuration)
@@ -197,15 +244,15 @@ private:
 	void UpdateArmed(const uint32_t elapsed)
 	{
 		const uint32_t ArmedFlashPeriod = 3000;
-		const uint32_t FlashDuration = 50;
+		const uint32_t FlashDuration = 90;
 
 		const uint32_t Progress = elapsed % ArmedFlashPeriod;
 
-		if (Progress < FlashDuration)
+		if (Progress <= FlashDuration)
 		{
 			Value.r = 0;
 			Value.g = 0;
-			Value.b = ArmedBrightness;
+			Value.b = map(Progress, 0, FlashDuration, ArmedBrightness, 0);
 		}
 		else
 		{
@@ -219,8 +266,8 @@ private:
 	void UpdateArming(const uint32_t elapsed)
 	{
 		const uint32_t TotalDuration = ARM_PERIOD_MILLIS - 1;
-		const uint32_t HeadDuration = 1200;
-		const uint32_t TailDuration = 1200;
+		const uint32_t HeadDuration = 2000;
+		const uint32_t TailDuration = 3000;
 
 		if (elapsed > TotalDuration)
 		{
