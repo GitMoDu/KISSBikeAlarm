@@ -18,4 +18,4 @@ Arduino based, simple movement detection alarm.
 		- Generic step-down power supply (3.3 V).
 
 Schematic
-![](https://raw.githubusercontent.com/GitMoDu/IFilter/master/Media/Schematic.png)
+![](https://raw.githubusercontent.com/GitMoDu/KISSBikeAlarm/master/Media/Schematic.png)
