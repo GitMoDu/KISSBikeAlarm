@@ -4,6 +4,7 @@
 		- Triggered by motion detection.
 
 	Dependecies
+		- Task Scheduler: https://github.com/arkhipenko/TaskScheduler
 		- MPU650: https://github.com/ElectronicCats/mpu6050
 
 	MCU
@@ -12,13 +13,12 @@
 	External Hardware
 		- MP56050.
 		- Opto-isolator for input from ignition key.
-		- Step-down power supply (3.3 V).
 	*/
 
-#define DEBUG_LOG
-#define DEBUG_STATE
-#define DEBUG_SENSOR
-#define WAIT_FOR_LOGGER
+	//#define DEBUG_LOG
+	//#define DEBUG_STATE
+	//#define DEBUG_SENSOR
+	//#define WAIT_FOR_LOGGER
 
 
 #define SERIAL_BAUD_RATE 115200
