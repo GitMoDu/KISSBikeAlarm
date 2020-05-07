@@ -116,9 +116,15 @@ void setup()
 
 }
 
+void(*ResetFunc) (void) = 0; // Software eset function @ address 0.
 
 void SetupError()
 {
+	pinMode(LED_BUILTIN, INPUT);
+	digitalWrite(LED_BUILTIN, HIGH);
+	// Wait for 1 second and try again.
+	delay(1000);
+	ResetFunc();
 }
 
 
