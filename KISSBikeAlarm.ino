@@ -31,13 +31,16 @@
 
 #include <TaskScheduler.h>
 
+#include <Wire.h>
+#include <avr/power.h>
+
 #include "Buzzer\AlarmBuzzer.h"
 #include "Light\AlarmLight.h"
 #include "MovementSensor\MovementSensor.h"
 #include "Input\InputReader.h"
 #include "AlarmManager.h"
 
-#include <Wire.h>
+
 
 
 // Process scheduler.
@@ -50,11 +53,11 @@ Scheduler SchedulerBase;
 //
 
 // Buzzer task.
-AlarmBuzzer Buzzer(&SchedulerBase, 11);
+AlarmBuzzer Buzzer(&SchedulerBase, 9);
 //
 
 // Light task.
-AlarmLight Light(&SchedulerBase, 7);
+AlarmLight Light(&SchedulerBase, 5);
 // 
 
 // Input controls task.
@@ -75,43 +78,93 @@ void setup()
 #ifdef DEBUG_LOG
 	Serial.begin(SERIAL_BAUD_RATE);
 #endif
+
+	Wire.begin();
+	Wire.setClock(400000);
+
+	SetupLowPower();
+
+
 	if (!Buzzer.Setup())
 	{
-		return;
+		SetupError();
 	}
 
 	if (!Light.Setup())
 	{
-		return;
+		SetupError();
 	}
 
-	Wire.begin();
-	Wire.setClock(400000);
+	if (!Reader.Setup(&Manager))
+	{
+		SetupError();
+	}
+
+	if (!Sensor.Setup(&Manager))
+	{
+		SetupError();
+	}
+
+	if (!Manager.Setup(&Buzzer, &Light, &Sensor, &Reader))
+	{
+		SetupError();
+	}
 
 #ifdef DEBUG_LOG
 	Serial.println(F("Alarm Start."));
 #endif
 
-	if (!Reader.Setup(&Manager))
-	{
-		Buzzer.PlayError();
-		return;
-	}
-
-	if (!Sensor.Setup(&Manager))
-	{
-		Buzzer.PlayError();
-		return;
-	}
-
-	if (!Manager.Setup(&Buzzer, &Light, &Sensor, &Reader))
-	{
-		Buzzer.PlayError();
-		return;
-	}
 }
+
+
+void SetupError()
+{
+}
+
 
 void loop()
 {
 	SchedulerBase.execute();
+}
+
+
+void SetupLowPower()
+{
+#ifndef DEBUG_LOG
+	power_usart0_disable();
+#endif // DEBUG_LOG
+
+	// Unused hardware.
+	power_adc_disable();
+	power_spi_disable();
+	power_timer1_disable();
+	power_timer2_disable();
+
+	// Unused pins. Used pins are commented.
+	pinMode(A0 , INPUT);
+	pinMode(A1 , INPUT);
+	pinMode(A2 , INPUT);
+	pinMode(A3 , INPUT);
+	//pinMode(A4 , INPUT);
+	//pinMode(A5 , INPUT);
+	pinMode(A6 , INPUT);
+	pinMode(A7 , INPUT);
+
+	pinMode(13, INPUT);
+	pinMode(12, INPUT);
+	pinMode(11, INPUT);
+	pinMode(10, INPUT);
+	//pinMode(9, INPUT);
+	pinMode(8, INPUT);
+	pinMode(7, INPUT);
+	pinMode(6, INPUT);
+	//pinMode(5, INPUT);
+	pinMode(4, INPUT);
+	//pinMode(3, INPUT);
+	//pinMode(2, INPUT);
+
+#ifndef DEBUG_LOG
+	pinMode(1, INPUT);
+	pinMode(0, INPUT);
+#endif
 }
