@@ -26,7 +26,7 @@ private:
 	const uint8_t ArmPin;
 	const uint8_t ArmInterruptPin;
 
-	const uint32_t DebounceDuration = 100;
+	const uint32_t DebounceDuration = 300;
 
 	bool DebouncedArmSignal = false;
 	bool LastEmittedEvent = false;
