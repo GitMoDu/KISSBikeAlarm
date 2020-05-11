@@ -12,10 +12,6 @@
 	MCU
 		- ATMega328P (3.3 V) @ 8 Mhz.
 
-	External Hardware
-		- Accelerometer.
-		- Opto-isolator.
-		- MOSFET-N.
 	*/
 
 	//#define DEBUG_LOG
