@@ -43,7 +43,7 @@ public:
 		, Sensor(xOffset, yOffset, zOffset)
 
 	{
-		pinMode(SensorPin, INPUT);
+		pinMode(SensorPin, INPUT_PULLUP);
 	}
 
 	virtual bool Setup(IEventListener* eventListener)
@@ -88,6 +88,7 @@ public:
 	virtual void Disable()
 	{
 		detachInterrupt(SensorInterruptPin);
+		pinMode(SensorPin, INPUT);
 		State = StateEnum::Disabled;
 		Task::enableIfNot();
 		Task::forceNextIteration();
@@ -106,6 +107,7 @@ public:
 			break;
 		case StateEnum::Active:
 			Task::disable();
+			pinMode(SensorPin, INPUT_PULLUP);
 			Sensor.SetActiveMotionDetection();
 			AttachInterrupt();
 			break;
@@ -127,6 +129,7 @@ public:
 	void OnPinInterrupt()
 	{
 		detachInterrupt(SensorInterruptPin);
+		pinMode(SensorPin, INPUT);
 
 		switch (State)
 		{

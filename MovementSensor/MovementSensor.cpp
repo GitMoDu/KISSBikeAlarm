@@ -11,5 +11,5 @@ static void StaticOnSensorInterrupt()
 void MovementSensor::AttachInterrupt()
 {
 	StaticMovementSensorReference = this;
-	attachInterrupt(SensorInterruptPin, StaticOnSensorInterrupt, FALLING);
+	attachInterrupt(SensorInterruptPin, StaticOnSensorInterrupt, LOW);
 }
