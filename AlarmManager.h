@@ -319,6 +319,8 @@ public:
 			}
 			break;
 		case StateEnum::Disabled:
+			Task::disable();
+			break;
 		default:
 			Task::disable();
 			break;
