@@ -327,14 +327,6 @@ public:
 		return true;
 	}
 
-	void OnDisable()
-	{
-		if (Buzzer != nullptr)
-		{
-			Buzzer->Stop();
-		}
-	}
-
 	bool OnEnable()
 	{
 		return State != StateEnum::Disabled;
