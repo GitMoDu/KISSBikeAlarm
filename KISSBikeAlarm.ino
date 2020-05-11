@@ -5,14 +5,17 @@
 
 	Dependecies
 		- Task Scheduler: https://github.com/arkhipenko/TaskScheduler
-		- MPU650: https://github.com/ElectronicCats/mpu6050
+		- TimerOne: https://github.com/PaulStoffregen/TimerOne
+		- Light WS2812: https://github.com/cpldcpu/light_ws2812
+		- Accelerometer: https://github.com/ElectronicCats/mpu6050
 
 	MCU
 		- ATMega328P (3.3 V) @ 8 Mhz.
 
 	External Hardware
-		- MP56050.
-		- Opto-isolator for input from ignition key.
+		- Accelerometer.
+		- Opto-isolator.
+		- MOSFET-N.
 	*/
 
 	//#define DEBUG_LOG
@@ -127,12 +130,10 @@ void SetupError()
 	ResetFunc();
 }
 
-
 void loop()
 {
 	SchedulerBase.execute();
 }
-
 
 void SetupLowPower()
 {
@@ -143,7 +144,7 @@ void SetupLowPower()
 	// Unused hardware.
 	power_adc_disable();
 	power_spi_disable();
-	power_timer1_disable();
+	//power_timer1_disable(); // Used by Buzzer;
 	power_timer2_disable();
 
 	// Unused pins. Used pins are commented.
@@ -151,23 +152,22 @@ void SetupLowPower()
 	pinMode(A1 , INPUT);
 	pinMode(A2 , INPUT);
 	pinMode(A3 , INPUT);
-	//pinMode(A4 , INPUT);
-	//pinMode(A5 , INPUT);
+	//pinMode(A4 , INPUT); // Used by I2C.
+	//pinMode(A5 , INPUT); // Used by I2C.
 	pinMode(A6 , INPUT);
 	pinMode(A7 , INPUT);
-
 	pinMode(13, INPUT);
 	pinMode(12, INPUT);
 	pinMode(11, INPUT);
 	pinMode(10, INPUT);
-	//pinMode(9, INPUT);
+	//pinMode(9, INPUT); // Used by Buzzer;
 	pinMode(8, INPUT);
 	pinMode(7, INPUT);
 	pinMode(6, INPUT);
-	//pinMode(5, INPUT);
+	//pinMode(5, INPUT); // Use by Alarm Light.
 	pinMode(4, INPUT);
-	//pinMode(3, INPUT);
-	//pinMode(2, INPUT);
+	//pinMode(3, INPUT); // Used by Movement Sensor.
+	//pinMode(2, INPUT); // Used by InputReader.
 
 #ifndef DEBUG_LOG
 	pinMode(1, INPUT);

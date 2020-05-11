@@ -13,7 +13,7 @@
 
 // use the cRGB struct hsv method
 #define USE_HSV
-#include <WS2812.h>
+#include <WS2812.h> // https://github.com/cpldcpu/light_ws2812
 
 class AlarmLight : Task, public virtual IAlarmOutput
 {
